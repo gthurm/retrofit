@@ -177,6 +177,25 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
     }
   }
 
+  private void addSingleOrMultipleQueryParams(String name, Object value, boolean urlEncodeValue) {
+      if (value instanceof Iterable) {
+          for (Object iterableValue : (Iterable<?>) value) {
+              if (iterableValue != null) { // Skip null values
+                  addQueryParam(name, iterableValue.toString(), urlEncodeValue);
+              }
+          }
+      } else if (value.getClass().isArray()) {
+          for (int x = 0, arrayLength = Array.getLength(value); x < arrayLength; x++) {
+              Object arrayValue = Array.get(value, x);
+              if (arrayValue != null) { // Skip null values
+                  addQueryParam(name, arrayValue.toString(), urlEncodeValue);
+              }
+          }
+      } else {
+          addQueryParam(name, value.toString(), urlEncodeValue);
+      }
+  }
+
   void setArguments(Object[] args) {
     if (args == null) {
       return;
@@ -208,22 +227,7 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
         case ENCODED_QUERY:
           if (value != null) { // Skip null values.
             boolean urlEncodeValue = paramUsage == QUERY;
-            if (value instanceof Iterable) {
-              for (Object iterableValue : (Iterable<?>) value) {
-                if (iterableValue != null) { // Skip null values
-                  addQueryParam(name, iterableValue.toString(), urlEncodeValue);
-                }
-              }
-            } else if (value.getClass().isArray()) {
-              for (int x = 0, arrayLength = Array.getLength(value); x < arrayLength; x++) {
-                Object arrayValue = Array.get(value, x);
-                if (arrayValue != null) { // Skip null values
-                  addQueryParam(name, arrayValue.toString(), urlEncodeValue);
-                }
-              }
-            } else {
-              addQueryParam(name, value.toString(), urlEncodeValue);
-            }
+            addSingleOrMultipleQueryParams(name, value, urlEncodeValue);
           }
           break;
         case QUERY_MAP:
@@ -233,7 +237,7 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
             for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
               Object entryValue = entry.getValue();
               if (entryValue != null) { // Skip null values.
-                addQueryParam(entry.getKey().toString(), entryValue.toString(), urlEncodeValue);
+                addSingleOrMultipleQueryParams(entry.getKey().toString(), entryValue, urlEncodeValue);
               }
             }
           }
