@@ -177,25 +177,6 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
     }
   }
 
-  private void addSingleOrMultipleQueryParams(String name, Object value, boolean urlEncodeValue) {
-      if (value instanceof Iterable) {
-          for (Object iterableValue : (Iterable<?>) value) {
-              if (iterableValue != null) { // Skip null values
-                  addQueryParam(name, iterableValue.toString(), urlEncodeValue);
-              }
-          }
-      } else if (value.getClass().isArray()) {
-          for (int x = 0, arrayLength = Array.getLength(value); x < arrayLength; x++) {
-              Object arrayValue = Array.get(value, x);
-              if (arrayValue != null) { // Skip null values
-                  addQueryParam(name, arrayValue.toString(), urlEncodeValue);
-              }
-          }
-      } else {
-          addQueryParam(name, value.toString(), urlEncodeValue);
-      }
-  }
-
   void setArguments(Object[] args) {
     if (args == null) {
       return;
@@ -204,6 +185,21 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
     if (!isSynchronous && !isObservable) {
       count -= 1;
     }
+
+    final ParamAdder queryParams = new ParamAdder() {
+      @Override
+      void addSingleParam(String name, String value, boolean urlEncodeValue) {
+        addQueryParam(name, value, urlEncodeValue);
+      }
+    };
+
+    final ParamAdder fieldParams = new ParamAdder() {
+      @Override
+      void addSingleParam(String name, String value, boolean urlEncodeValue) {
+        formBody.addField(name, value);
+      }
+    };
+
     for (int i = 0; i < count; i++) {
       String name = paramNames[i];
       Object value = args[i];
@@ -227,7 +223,7 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
         case ENCODED_QUERY:
           if (value != null) { // Skip null values.
             boolean urlEncodeValue = paramUsage == QUERY;
-            addSingleOrMultipleQueryParams(name, value, urlEncodeValue);
+            queryParams.add(name, value, urlEncodeValue);
           }
           break;
         case QUERY_MAP:
@@ -237,7 +233,7 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
             for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
               Object entryValue = entry.getValue();
               if (entryValue != null) { // Skip null values.
-                addSingleOrMultipleQueryParams(entry.getKey().toString(), entryValue, urlEncodeValue);
+                queryParams.add(entry.getKey().toString(), entryValue, urlEncodeValue);
               }
             }
           }
@@ -249,22 +245,7 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
           break;
         case FIELD:
           if (value != null) { // Skip null values.
-            if (value instanceof Iterable) {
-              for (Object iterableValue : (Iterable<?>) value) {
-                if (iterableValue != null) { // Skip null values.
-                  formBody.addField(name, iterableValue.toString());
-                }
-              }
-            } else if (value.getClass().isArray()) {
-              for (int x = 0, arrayLength = Array.getLength(value); x < arrayLength; x++) {
-                Object arrayValue = Array.get(value, x);
-                if (arrayValue != null) { // Skip null values.
-                  formBody.addField(name, arrayValue.toString());
-                }
-              }
-            } else {
-              formBody.addField(name, value.toString());
-            }
+            fieldParams.add(name, value);
           }
           break;
         case FIELD_MAP:
@@ -272,7 +253,7 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
             for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
               Object entryValue = entry.getValue();
               if (entryValue != null) { // Skip null values.
-                formBody.addField(entry.getKey().toString(), entryValue.toString());
+                fieldParams.add(entry.getKey().toString(), entryValue.toString());
               }
             }
           }
@@ -382,5 +363,33 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
     @Override public void writeTo(OutputStream out) throws IOException {
       delegate.writeTo(out);
     }
+  }
+
+  private abstract static class ParamAdder {
+
+    void add(String name, Object value, boolean urlEncodeValue) {
+      if (value instanceof Iterable) {
+        for (Object iterableValue : (Iterable<?>) value) {
+          if (iterableValue != null) { // Skip null values
+            addSingleParam(name, iterableValue.toString(), urlEncodeValue);
+          }
+        }
+      } else if (value.getClass().isArray()) {
+        for (int x = 0, arrayLength = Array.getLength(value); x < arrayLength; x++) {
+          Object arrayValue = Array.get(value, x);
+          if (arrayValue != null) { // Skip null values
+            addSingleParam(name, arrayValue.toString(), urlEncodeValue);
+          }
+        }
+      } else {
+        addSingleParam(name, value.toString(), urlEncodeValue);
+      }
+    }
+
+    void add(String name, Object value) {
+      add(name, value, false);
+    }
+
+    abstract void addSingleParam(String name, String value, boolean urlEncodeValue);
   }
 }

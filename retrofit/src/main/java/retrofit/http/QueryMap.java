@@ -27,8 +27,8 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  * <p>
  * Both keys and values are converted to strings using {@link String#valueOf(Object)}. Values are
  * URL encoded and {@code null} will not include the query parameter in the URL.
- * Passing an {@link java.lang.Iterable Iterable} or array as a value will result in a query parameter for
- * each non-{@code null} item.
+ * Passing an {@link java.lang.Iterable Iterable} or array as a value will result in a query
+ * parameter for each non-{@code null} item.
  * <p>
  * Simple Example:
  * <pre>
